@@ -1,0 +1,532 @@
+:root {
+  --bg-color: #f0f0f0;
+  --text-color: #000000;
+  --card-bg: #ffffff;
+  --card-border: 2px solid #000000;
+  --hover-bg: #fffde7; /* Light yellow */
+  --focus-color: #ffeb3b; /* Bright yellow */
+  --folder-icon-color: #fbc02d;
+  --modal-overlay: rgba(0, 0, 0, 0.5);
+  --font-base: 22px;
+  --row-height: 80px; 
+  --header-height: auto;
+}
+
+/* Dark Mode Variables */
+body.dark-mode {
+  --bg-color: #1a1a1a;
+  --text-color: #ffffff;
+  --card-bg: #2d2d2d;
+  --card-border: 2px solid #666666;
+  --hover-bg: #3d3d3d;
+  --focus-color: #4a4a4a;
+  --folder-icon-color: #fdd835;
+  --modal-overlay: rgba(255, 255, 255, 0.1);
+}
+
+body, html {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  overflow: hidden; 
+}
+
+/* Header Section */
+header {
+  background-color: var(--card-bg);
+  border-bottom: 4px solid var(--text-color);
+  padding: 16px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  z-index: 100;
+  position: relative;
+}
+
+.header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 48px;
+}
+
+/* Action Buttons */
+.header-actions {
+    display: flex;
+    gap: 24px;
+}
+
+.text-btn {
+    background: none;
+    border: none;
+    font-size: var(--font-base);
+    font-weight: bold;
+    cursor: pointer;
+    padding: 8px 16px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    color: var(--text-color);
+}
+
+.text-btn:hover, .text-btn.active {
+    background-color: var(--focus-color);
+    border-color: var(--text-color);
+    text-decoration: underline;
+}
+
+/* Search Bar */
+#search-container {
+  width: 100%;
+  transition: max-height 0.2s ease-out, opacity 0.2s ease-out;
+  overflow: hidden;
+}
+
+#search-container.hidden {
+    display: none;
+}
+
+#search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 20px;
+  font-size: calc(var(--font-base) * 1.2);
+  border: 3px solid var(--text-color);
+  border-radius: 8px;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+}
+
+#search-input:focus {
+  outline: none;
+  background-color: var(--focus-color);
+}
+
+/* Settings Card */
+#settings-card {
+    position: absolute;
+    top: 100%; /* Anchor to the bottom of the header */
+    right: 32px;
+    margin-top: 8px; /* Slight gap */
+    background-color: var(--card-bg);
+    border: 3px solid var(--text-color);
+    padding: 24px;
+    box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+    z-index: 200;
+    min-width: 350px;
+}
+
+#settings-card.hidden {
+    display: none;
+}
+
+.settings-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 20px; /* Fixed size */
+    font-weight: bold;
+}
+
+input[type=range] {
+    flex: 1;
+    height: 32px; /* Easier to grab */
+    cursor: pointer;
+}
+
+/* Radio Button Styles */
+.radio-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 20px;
+}
+
+input[type=radio], input[type=checkbox] {
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    margin: 0;
+}
+
+/* Breadcrumbs */
+#breadcrumbs {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: var(--font-base);
+  font-weight: bold;
+  overflow-x: auto;
+  white-space: nowrap;
+  flex: 1; /* Take remaining space */
+  margin-right: 24px;
+}
+
+.crumb {
+  cursor: pointer;
+  padding: 4px 8px;
+  border: 2px solid transparent;
+  border-radius: 4px;
+}
+
+.crumb:hover {
+  background-color: var(--focus-color);
+  border-color: var(--text-color);
+  text-decoration: underline;
+}
+
+.crumb-separator {
+  color: #888;
+}
+
+/* Scroll Controls */
+#scroll-controls {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    z-index: 300;
+}
+
+.scroll-btn {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%; /* Circle */
+    border: 3px solid var(--text-color);
+    background-color: var(--card-bg);
+    color: var(--text-color);
+    font-size: 32px;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    transition: transform 0.1s, background-color 0.1s;
+    transform: rotate(90deg);
+}
+
+.scroll-btn:hover {
+    background-color: var(--focus-color);
+    transform: rotate(90deg) scale(1.1);
+}
+
+.scroll-btn:active {
+    background-color: var(--text-color);
+    color: var(--bg-color);
+    transform: rotate(90deg) scale(0.95);
+}
+
+/* List Container */
+#list-container {
+  height: calc(100vh - 120px); 
+  flex: 1;
+  overflow-y: auto;
+  position: relative;
+  width: 100%;
+  padding: 0;
+  scroll-behavior: smooth; 
+}
+
+#list-phantom {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: -1;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 64px;
+    font-size: 28px;
+    color: #888;
+    font-weight: bold;
+}
+
+/* List Item */
+.list-item {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: var(--row-height);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  background-color: var(--card-bg);
+  border-bottom: 1px solid #ccc;
+  cursor: pointer;
+  transition: background-color 0.1s;
+}
+
+.list-item:hover {
+  background-color: var(--hover-bg);
+  border-left: 8px solid var(--folder-icon-color);
+}
+
+/* Show actions on hover */
+.list-item:hover .item-actions {
+    display: flex;
+}
+
+.list-item:focus {
+  outline: 4px solid var(--text-color);
+  background-color: var(--focus-color);
+}
+
+/* Item Action Buttons (Edit/Delete) */
+.item-actions {
+    display: none; /* Hidden by default */
+    margin-left: 16px;
+    gap: 8px; /* Reduced gap */
+}
+
+.action-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0 4px; /* Minimal padding */
+    font-size: var(--font-base); /* Match dynamic font size */
+    font-weight: bold;
+    font-family: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+}
+
+.btn-delete {
+    color: #d32f2f;
+}
+
+.btn-delete:hover {
+    text-decoration: underline;
+    background-color: rgba(211, 47, 47, 0.1);
+    border-radius: 4px;
+}
+
+.btn-edit {
+    color: #1976d2;
+}
+
+.btn-edit:hover {
+    text-decoration: underline;
+    background-color: rgba(25, 118, 210, 0.1);
+    border-radius: 4px;
+}
+
+/* Dark mode overrides for action buttons */
+body.dark-mode .btn-delete {
+    color: #ff8a80;
+}
+body.dark-mode .btn-delete:hover {
+    background-color: rgba(255, 138, 128, 0.2);
+}
+
+body.dark-mode .btn-edit {
+    color: #82b1ff;
+}
+body.dark-mode .btn-edit:hover {
+    background-color: rgba(130, 177, 255, 0.2);
+}
+
+/* Section Header (Date) Style */
+.section-header {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: var(--row-height);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0 32px;
+  background-color: #e0e0e0; 
+  border-bottom: 2px solid var(--text-color);
+  font-weight: bold;
+  font-size: var(--font-base);
+  color: #333;
+  pointer-events: none; 
+}
+
+/* Dark mode overrides for section header */
+body.dark-mode .section-header {
+    background-color: #444;
+    color: #fff;
+}
+
+/* Item Content */
+.item-icon {
+  width: calc(var(--row-height) * 0.6); 
+  height: calc(var(--row-height) * 0.6);
+  margin-right: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.item-icon img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.folder-icon {
+  color: var(--folder-icon-color);
+  width: 100%; 
+  height: 100%;
+}
+
+.item-text {
+  font-size: var(--font-base);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex: 1;
+}
+
+/* SVG Styling */
+svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Modal Overlay */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-overlay);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-overlay.hidden {
+    display: none;
+}
+
+/* Modal Content */
+.modal-content {
+    background-color: var(--card-bg);
+    border: 4px solid var(--text-color);
+    padding: 40px; 
+    border-radius: 12px;
+    max-width: 800px; 
+    width: 90%;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    gap: 32px; 
+}
+
+.modal-title {
+    font-size: 40px; 
+    font-weight: bold;
+    border-bottom: 3px solid #ccc;
+    padding-bottom: 16px;
+}
+
+.modal-body {
+    font-size: 32px; 
+    line-height: 1.4;
+}
+
+.modal-input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.modal-input-label {
+    font-size: 24px; 
+    font-weight: bold;
+}
+
+.modal-input {
+    font-size: 32px; 
+    padding: 12px;
+    border: 3px solid var(--text-color);
+    border-radius: 8px;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 24px;
+    margin-top: 24px;
+}
+
+.modal-btn {
+    font-size: 32px; 
+    padding: 16px 48px;
+    border: 3px solid var(--text-color);
+    border-radius: 12px;
+    cursor: pointer;
+    font-weight: bold;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+.modal-btn:hover {
+    background-color: var(--hover-bg);
+}
+
+.modal-btn.primary {
+    background-color: var(--focus-color);
+}
+
+.modal-btn.danger {
+    background-color: #ffebee;
+    color: #d32f2f;
+    border-color: #d32f2f;
+}
+.modal-btn.danger:hover {
+    background-color: #ffcdd2;
+}
+
+body.dark-mode .modal-btn.danger {
+    background-color: #5a0000;
+    color: #ff8a80;
+}
+
+/* Error Toast */
+#error-toast {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #d32f2f;
+    color: #ffffff;
+    padding: 16px 32px;
+    border-radius: 8px;
+    font-size: 24px;
+    font-weight: bold;
+    z-index: 2000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    text-align: center;
+    border: 3px solid #fff;
+    opacity: 0;
+    transition: opacity 0.3s;
+    pointer-events: none;
+}
+
+#error-toast.visible {
+    opacity: 1;
+    pointer-events: auto;
+}

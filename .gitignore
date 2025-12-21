@@ -1,0 +1,26 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor settings
+.vscode/
+.idea/
+*.swp
+*.swo
+myFeedbacks.txt
+
+# Chrome Extension artifacts
+*.crx
+*.zip
+*.pem
+
+# Local environment
+.env
+.DS_Store
+
+# Node.js (if added later)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

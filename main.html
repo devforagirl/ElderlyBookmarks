@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elderly Friendly Bookmarks</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <!-- SVG Sprites (Hidden) -->
+    <svg style="display: none;">
+        <symbol id="icon-folder" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/>
+        </symbol>
+        <symbol id="icon-web" viewBox="0 0 24 24">
+            <path fill="#666" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
+        </symbol>
+        <!-- Trash Icon -->
+        <symbol id="icon-delete" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/>
+        </symbol>
+        <!-- Edit Icon -->
+        <symbol id="icon-edit" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/>
+        </symbol>
+    </svg>
+
+    <header>
+        <div class="header-top">
+            <nav id="breadcrumbs" aria-label="Breadcrumb">
+                <!-- Dynamic Breadcrumbs -->
+            </nav>
+            <div class="header-actions">
+                <button id="btn-search" class="text-btn" data-i18n="btnSearch">Search</button>
+                <button id="btn-settings" class="text-btn" data-i18n="btnSettings">Settings</button>
+            </div>
+        </div>
+
+        <div id="search-container" class="hidden">
+            <input type="text" id="search-input" placeholder="Search bookmarks..." data-i18n-placeholder="searchPlaceholder" aria-label="Search bookmarks">
+        </div>
+        
+        <!-- Settings Menu (Card) -->
+        <div id="settings-card" class="hidden">
+            <div class="settings-row">
+                <label for="font-size-slider" data-i18n="lblFontSize">Font Size:</label>
+                <input type="range" id="font-size-slider" min="10" max="100" value="22" step="2">
+                <span id="font-size-display">22px</span>
+            </div>
+            <div class="settings-row" style="margin-top: 16px; align-items: center; justify-content: space-between; flex-direction: row;">
+                <label data-i18n="lblViewMode">View Mode:</label>
+                <div style="display: flex; gap: 24px;">
+                    <label class="radio-label">
+                        <input type="radio" name="view-mode" value="folder" checked>
+                        <span data-i18n="lblModeFolder">Folder</span>
+                    </label>
+                    <label class="radio-label">
+                        <input type="radio" name="view-mode" value="time">
+                        <span data-i18n="lblModeTime">Time</span>
+                    </label>
+                </div>
+            </div>
+            <div class="settings-row" style="margin-top: 16px; justify-content: space-between;">
+                <label for="dark-mode-switch" data-i18n="lblDarkMode">Dark Mode:</label>
+                <input type="checkbox" id="dark-mode-switch">
+            </div>
+            <div class="settings-row" style="margin-top: 16px; justify-content: space-between;">
+                <label for="language-select" data-i18n="lblLanguage">Language:</label>
+                <select id="language-select" style="font-size: 20px; padding: 4px;">
+                    <option value="auto">Auto</option>
+                    <option value="en">English</option>
+                    <option value="zh_CN">简体中文</option>
+                    <option value="zh_TW">繁體中文</option>
+                    <option value="ja">日本語</option>
+                    <option value="ko">한국어</option>
+                    <option value="ru">Русский</option>
+                    <option value="fr">Français</option>
+                    <option value="hi">हिन्दी</option>
+                </select>
+            </div>
+        </div>
+    </header>
+
+    <main id="list-container">
+        <div id="list-phantom"></div>
+        <!-- List items will be injected here absolutely positioned -->
+    </main>
+
+    <!-- Scroll Controls -->
+    <div id="scroll-controls">
+        <button id="btn-scroll-top" class="scroll-btn" aria-label="Top">&lt;</button>
+        <button id="btn-scroll-bottom" class="scroll-btn" aria-label="Bottom">&gt;</button>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="modal-delete" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-title" data-i18n="modalDeleteTitle">🗑️ Delete Confirmation</div>
+            <div class="modal-body" id="modal-delete-text">Are you sure?</div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="btn-delete-cancel" data-i18n="btnCancel">Cancel</button>
+                <button class="modal-btn danger" id="btn-delete-confirm" data-i18n="btnDeleteConfirm">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="modal-edit" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-title" data-i18n="modalEditTitle">✏️ Edit Bookmark</div>
+            <div class="modal-input-group">
+                <label class="modal-input-label" data-i18n="lblTitle">Name:</label>
+                <input type="text" id="edit-title" class="modal-input">
+            </div>
+            <div class="modal-input-group" id="edit-url-group">
+                <label class="modal-input-label" data-i18n="lblUrl">URL:</label>
+                <input type="text" id="edit-url" class="modal-input">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn" id="btn-edit-cancel" data-i18n="btnCancel">Cancel</button>
+                <button class="modal-btn primary" id="btn-edit-save" data-i18n="btnSave">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error Toast -->
+    <div id="error-toast"></div>
+
+    <script src="locales.js"></script>
+    <script src="renderer.js"></script>
+</body>
+</html>
