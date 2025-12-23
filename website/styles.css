@@ -184,29 +184,54 @@ footer {
 }
 
 /* Buttons */
+.hero-cta {
+    display: flex;
+    gap: 1.5rem;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
 .btn {
     display: inline-block;
-    padding: 1rem 2rem;
+    padding: 1.25rem 2.5rem;
     border-radius: 9999px;
     font-weight: 600;
+    font-size: 1.1rem;
     text-decoration: none;
     transition: all 0.2s;
+    cursor: pointer;
 }
 
 .btn-primary {
     background: var(--primary);
     color: white;
+    border: 1px solid var(--primary);
 }
 
 .btn-primary:hover {
     background: var(--primary-hover);
-    transform: scale(1.02);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.3);
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text);
+    border: 2px solid var(--border);
+}
+
+.btn-outline:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: translateY(-2px);
+    background: var(--accent);
 }
 
 @media (max-width: 640px) {
     .hero h1 {
         font-size: 2.5rem;
     }
+
     .hero p {
         font-size: 1.25rem;
     }
