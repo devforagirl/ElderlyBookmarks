@@ -2,6 +2,8 @@ import { t, setLanguage } from '../core/i18n.js';
 import { BookmarkService } from '../services/bookmark.js';
 import { safeAPI, showError } from '../utils/helpers.js';
 import { state, setState } from '../core/state.js';
+import { VirtualList } from './components/List.js';
+import { createRow, createCard, createHeaderRow } from './renderers.js';
 
 const BUFFER_SIZE = 5;
 const DEFAULT_FONT_SIZE = 22;
@@ -39,6 +41,40 @@ export async function initialize() {
 
     let currentRowHeight = 80;
     let targetItemForAction = null;
+
+    // Virtual List Setup
+    const virtualList = new VirtualList(listContainer, {
+        rowHeight: currentRowHeight,
+        onHeaderFound: (headerTitle) => {
+            const labelEl = document.getElementById('time-view-label');
+            const sepEl = document.getElementById('time-view-separator');
+            if (labelEl && sepEl) {
+                if (headerTitle) {
+                    labelEl.textContent = headerTitle;
+                    sepEl.style.display = 'inline';
+                } else {
+                    labelEl.textContent = '';
+                    sepEl.style.display = 'none';
+                }
+            }
+        },
+        renderItem: (item, index, height) => {
+            if (item.type === 'header') {
+                return createHeaderRow(item, index, height);
+            }
+            
+            const handlers = {
+                onClick: (item) => handleItemClick(item),
+                onEdit: (item) => openEditModal(item),
+                onDelete: (item) => openDeleteModal(item)
+            };
+
+            if (state.isCardView) {
+                return createCard(item, index, height, getColumns(), listContainer.clientWidth, handlers);
+            }
+            return createRow(item, index, height, handlers);
+        }
+    });
 
     // --- INTERNAL HELPERS ---
     function debounce(func, wait) {
@@ -109,11 +145,10 @@ export async function initialize() {
         document.documentElement.style.setProperty('--font-base', `${size}px`);
         document.documentElement.style.setProperty('--row-height', `${currentRowHeight}px`);
         fontSizeDisplay.textContent = `${size}px`;
-        updatePhantomHeight();
         renderVisibleItems();
     }
 
-    function toggleSearch(show) {
+    async function toggleSearch(show) {
         if (show) {
             searchContainer.classList.remove('hidden');
             btnSearch.classList.add('active');
@@ -170,8 +205,8 @@ export async function initialize() {
             const children = await BookmarkService.getChildren(folderId);
             setState('allItems', children);
             listContainer.scrollTop = 0;
-            updatePhantomHeight();
             renderVisibleItems();
+
         } catch (err) {
             showError(t("msgErrLoadFolder") + err);
         }
@@ -186,7 +221,7 @@ export async function initialize() {
             setState('allItems', BookmarkService.groupBookmarksByTime(flatBookmarks, t));
 
             listContainer.scrollTop = 0;
-            updatePhantomHeight();
+            renderVisibleItems();
 
             breadcrumbsContainer.innerHTML = `
                 <span class="crumb" style="cursor:default">${t("crumbTimeView")}</span>
@@ -234,182 +269,12 @@ export async function initialize() {
         return Math.max(1, Math.floor(listContainer.clientWidth / minCardWidth));
     }
 
-    function updatePhantomHeight() {
-        if (state.allItems.length === 0) {
-            listPhantom.style.height = '0px';
-        } else {
-            if (state.isCardView) {
-                const cols = getColumns();
-                const rows = Math.ceil(state.allItems.length / cols);
-                listPhantom.style.height = `${rows * currentRowHeight}px`;
-            } else {
-                listPhantom.style.height = `${state.allItems.length * currentRowHeight}px`;
-            }
-        }
-    }
-
     function renderVisibleItems() {
-        if (state.allItems.length === 0) {
-            listContainer.innerHTML = `
-                <div id="list-phantom"></div>
-                <div class="empty-state">${t("msgEmpty")}</div>
-            `;
-            return;
-        }
-
-        const scrollTop = listContainer.scrollTop;
-        const viewportHeight = listContainer.clientHeight;
-        let startIndex, endIndex;
-
-        if (state.isCardView) {
-            const cols = getColumns();
-            startIndex = Math.floor(scrollTop / currentRowHeight) * cols;
-            endIndex = Math.min(state.allItems.length - 1, Math.ceil((scrollTop + viewportHeight) / currentRowHeight) * cols + BUFFER_SIZE);
-        } else {
-            startIndex = Math.floor(scrollTop / currentRowHeight);
-            endIndex = Math.min(state.allItems.length - 1, Math.floor((scrollTop + viewportHeight) / currentRowHeight) + BUFFER_SIZE);
-        }
-
-        if (state.isTimeView && state.allItems.length > 0) {
-            let currentHeader = '';
-            for (let i = startIndex; i >= 0; i--) {
-                if (state.allItems[i] && state.allItems[i].type === 'header') {
-                    currentHeader = state.allItems[i].title;
-                    break;
-                }
-            }
-            const labelEl = document.getElementById('time-view-label');
-            const sepEl = document.getElementById('time-view-separator');
-            if (labelEl && sepEl) {
-                if (currentHeader) {
-                    labelEl.textContent = currentHeader;
-                    sepEl.style.display = 'inline';
-                } else {
-                    labelEl.textContent = '';
-                    sepEl.style.display = 'none';
-                }
-            }
-        }
-
-        const currentItems = Array.from(listContainer.querySelectorAll('.list-item, .section-header, .empty-state'));
-        currentItems.forEach(el => el.remove());
-
-        if (!document.getElementById('list-phantom')) {
-            const p = document.createElement('div');
-            p.id = 'list-phantom';
-            listPhantom.style.height = `${state.allItems.length * currentRowHeight}px`;
-            listContainer.appendChild(p);
-        }
-
-        for (let i = startIndex; i <= endIndex; i++) {
-            const item = state.allItems[i];
-            if (!item) continue;
-            let el;
-            if (item.type === 'header') {
-                el = createHeaderRow(item, i);
-            } else if (state.isCardView) {
-                el = createCard(item, i);
-            } else {
-                el = createRow(item, i);
-            }
-            listContainer.appendChild(el);
-        }
-    }
-
-    function createHeaderRow(item, index) {
-        const div = document.createElement('div');
-        div.className = 'section-header';
-        div.style.top = `${index * currentRowHeight}px`;
-        div.textContent = item.title;
-        return div;
-    }
-
-    function createCard(item, index) {
-        const cols = getColumns();
-        const row = Math.floor(index / cols);
-        const col = index % cols;
-        const cardWidth = Math.max(100, listContainer.clientWidth / cols);
-        const div = document.createElement('div');
-        div.className = 'bookmark-card';
-        if (!item.url) div.classList.add('is-folder');
-        div.style.top = `${row * currentRowHeight}px`;
-        div.style.left = `${col * cardWidth}px`;
-        div.style.width = `${cardWidth - 20}px`;
-        div.style.height = `${currentRowHeight - 20}px`;
-        const textDiv = document.createElement('div');
-        textDiv.className = 'card-text';
-        textDiv.textContent = item.title;
-        div.appendChild(textDiv);
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'item-actions';
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'action-btn btn-edit';
-        btnEdit.textContent = t("btnLabelEdit");
-        btnEdit.onclick = (e) => {
-            e.stopPropagation();
-            openEditModal(item);
-        };
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'action-btn btn-delete';
-        btnDelete.textContent = t("btnLabelDelete");
-        btnDelete.onclick = (e) => {
-            e.stopPropagation();
-            openDeleteModal(item);
-        };
-        actionsDiv.appendChild(btnEdit);
-        actionsDiv.appendChild(btnDelete);
-        div.appendChild(actionsDiv);
-        div.onclick = () => handleItemClick(item);
-        return div;
-    }
-
-    function createRow(item, index) {
-        const div = document.createElement('div');
-        div.className = 'list-item';
-        div.style.top = `${index * currentRowHeight}px`;
-        const iconDiv = document.createElement('div');
-        iconDiv.className = 'item-icon';
-        if (item.url) {
-            const img = document.createElement('img');
-            const urlObj = new URL(chrome.runtime.getURL("/_favicon/"));
-            urlObj.searchParams.set("pageUrl", item.url);
-            urlObj.searchParams.set("size", "64");
-            img.src = urlObj.toString();
-            img.onerror = () => {
-                iconDiv.innerHTML = `<svg><use href="#icon-web"></use></svg>`;
-            };
-            iconDiv.appendChild(img);
-        } else {
-            iconDiv.innerHTML = `<svg class="folder-icon"><use href="#icon-folder"></use></svg>`;
-        }
-        const textDiv = document.createElement('div');
-        textDiv.className = 'item-text';
-        textDiv.textContent = item.title;
-        const actionsDiv = document.createElement('div');
-        actionsDiv.className = 'item-actions';
-        const btnEdit = document.createElement('button');
-        btnEdit.className = 'action-btn btn-edit';
-        btnEdit.textContent = t("btnLabelEdit");
-        btnEdit.title = t("modalEditTitle");
-        btnEdit.onclick = (e) => {
-            e.stopPropagation();
-            openEditModal(item);
-        }
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'action-btn btn-delete';
-        btnDelete.textContent = t("btnLabelDelete");
-        btnDelete.title = t("modalDeleteTitle");
-        btnDelete.onclick = (e) => {
-            e.stopPropagation();
-            openDeleteModal(item);
-        }
-        actionsDiv.appendChild(btnEdit);
-        actionsDiv.appendChild(btnDelete);
-        div.appendChild(iconDiv);
-        div.appendChild(textDiv);
-        div.appendChild(actionsDiv);
-        div.onclick = () => handleItemClick(item);
-        return div;
+        virtualList.update(state.allItems, {
+            isCardView: state.isCardView,
+            cols: getColumns(),
+            emptyText: t("msgEmpty")
+        });
     }
 
     function handleItemClick(item) {
@@ -418,6 +283,19 @@ export async function initialize() {
         } else {
             navigateTo(item.id, item.title);
         }
+    }
+
+    function openEditModal(item) {
+        targetItemForAction = item;
+        editTitleInput.value = item.title;
+        editUrlInput.value = item.url || '';
+        modalEdit.classList.remove('hidden');
+    }
+
+    function openDeleteModal(item) {
+        targetItemForAction = item;
+        modalDeleteText.textContent = t("msgDeleteConfirm").replace('$TITLE$', item.title);
+        modalDelete.classList.remove('hidden');
     }
 
     async function handleSearch(e) {
@@ -437,8 +315,8 @@ export async function initialize() {
             const results = await BookmarkService.search(query);
             setState('allItems', results);
             listContainer.scrollTop = 0;
-            updatePhantomHeight();
             renderVisibleItems();
+
             breadcrumbsContainer.innerHTML = `<span class="crumb">${t("crumbSearch")}</span>`;
         } catch (err) {
             showError(t("msgErrSearch") + err);
@@ -514,9 +392,8 @@ export async function initialize() {
                 const children = await BookmarkService.getChildren(state.currentFolderId);
                 setState('allItems', children);
             }
-            updatePhantomHeight();
-            listContainer.scrollTop = savedScrollTop;
             renderVisibleItems();
+            listContainer.scrollTop = savedScrollTop;
         } catch (err) {
             showError(t("msgErrRefresh") + err);
         }
@@ -547,7 +424,7 @@ export async function initialize() {
 
     listContainer.addEventListener('scroll', onScroll);
     window.addEventListener('resize', () => {
-        updatePhantomHeight();
+        renderVisibleItems();
         onScroll();
     });
 
@@ -586,7 +463,7 @@ export async function initialize() {
                     setState('isCardView', true);
                     setState('isTimeView', false);
                     saveSetting('viewMode', 'card');
-                    updatePhantomHeight();
+                    renderVisibleItems();
                     onScroll();
                 } else {
                     setState('isTimeView', false);
