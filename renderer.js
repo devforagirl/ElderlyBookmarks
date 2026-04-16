@@ -7,6 +7,7 @@ let allItems = [];
 let navigationStack = []; 
 let isSearching = false;
 let isTimeView = false;
+let isCardView = false;
 let currentFolderId = '0';
 let currentFontSize = DEFAULT_FONT_SIZE;
 let currentRowHeight = 80; 
@@ -63,7 +64,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     // Attach scroll listener for virtual rendering
     listContainer.addEventListener('scroll', onScroll);
-    window.addEventListener('resize', onScroll);
+    window.addEventListener('resize', () => {
+        updatePhantomHeight();
+        onScroll();
+    });
 
     // Search Input listener
     searchInput.addEventListener('input', debounce(handleSearch, 300));
@@ -97,17 +101,24 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (e.target.checked) {
                 if (e.target.value === 'time') {
                     isTimeView = true;
+                    isCardView = false;
                     saveSetting('viewMode', 'time');
                     enterTimeView();
+                } else if (e.target.value === 'card') {
+                    isCardView = true;
+                    isTimeView = false;
+                    saveSetting('viewMode', 'card');
+                    updatePhantomHeight();
+                    onScroll();
                 } else {
                     isTimeView = false;
+                    isCardView = false;
                     saveSetting('viewMode', 'folder');
-                    isSearching = false; 
+                    isSearching = false;
                     navigateTo(currentFolderId, navigationStack[navigationStack.length-1]?.title || t("crumbHome"));
                 }
             }
-        });
-    });
+        });    });
 
     // Dark Mode Listener
     darkModeSwitch.addEventListener('change', (e) => {
@@ -242,8 +253,12 @@ function loadSettings() {
     if (savedViewMode === 'time') {
         isTimeView = true;
         document.querySelector('input[value="time"]').checked = true;
+    } else if (savedViewMode === 'card') {
+        isCardView = true;
+        document.querySelector('input[value="card"]').checked = true;
     } else {
         isTimeView = false;
+        isCardView = false;
         document.querySelector('input[value="folder"]').checked = true;
     }
 
@@ -468,6 +483,12 @@ function updateBreadcrumbs() {
 }
 
 // Virtual List Logic
+function getColumns() {
+    if (!listContainer) return 1;
+    const minCardWidth = 250;
+    return Math.max(1, Math.floor(listContainer.clientWidth / minCardWidth));
+}
+
 function onScroll() {
     requestAnimationFrame(renderVisibleItems);
 }
@@ -476,7 +497,13 @@ function updatePhantomHeight() {
     if (allItems.length === 0) {
         listPhantom.style.height = '0px';
     } else {
-        listPhantom.style.height = `${allItems.length * currentRowHeight}px`;
+        if (isCardView) {
+            const cols = getColumns();
+            const rows = Math.ceil(allItems.length / cols);
+            listPhantom.style.height = `${rows * currentRowHeight}px`;
+        } else {
+            listPhantom.style.height = `${allItems.length * currentRowHeight}px`;
+        }
     }
 }
 
@@ -492,11 +519,21 @@ function renderVisibleItems() {
     const scrollTop = listContainer.scrollTop;
     const viewportHeight = listContainer.clientHeight;
     
-    const startIndex = Math.floor(scrollTop / currentRowHeight);
-    const endIndex = Math.min(
-        allItems.length - 1,
-        Math.floor((scrollTop + viewportHeight) / currentRowHeight) + BUFFER_SIZE
-    );
+    let startIndex, endIndex;
+    if (isCardView) {
+        const cols = getColumns();
+        startIndex = Math.floor(scrollTop / currentRowHeight) * cols;
+        endIndex = Math.min(
+            allItems.length - 1,
+            Math.ceil((scrollTop + viewportHeight) / currentRowHeight) * cols + BUFFER_SIZE
+        );
+    } else {
+        startIndex = Math.floor(scrollTop / currentRowHeight);
+        endIndex = Math.min(
+            allItems.length - 1,
+            Math.floor((scrollTop + viewportHeight) / currentRowHeight) + BUFFER_SIZE
+        );
+    }
 
     if (isTimeView && allItems.length > 0) {
         let currentHeader = '';
@@ -538,6 +575,8 @@ function renderVisibleItems() {
         let el;
         if (item.type === 'header') {
             el = createHeaderRow(item, i);
+        } else if (isCardView) {
+            el = createCard(item, i);
         } else {
             el = createRow(item, i);
         }
@@ -550,6 +589,54 @@ function createHeaderRow(item, index) {
     div.className = 'section-header';
     div.style.top = `${index * currentRowHeight}px`;
     div.textContent = item.title;
+    return div;
+}
+
+function createCard(item, index) {
+    const cols = getColumns();
+    const row = Math.floor(index / cols);
+    const col = index % cols;
+    const cardWidth = Math.max(100, listContainer.clientWidth / cols);
+
+    const div = document.createElement('div');
+    div.className = 'bookmark-card';
+    if (!item.url) div.classList.add('is-folder');
+
+    div.style.top = `${row * currentRowHeight}px`;
+    div.style.left = `${col * cardWidth}px`;
+    div.style.width = `${cardWidth - 20}px`; // Subtract gap
+    div.style.height = `${currentRowHeight - 20}px`; // Subtract gap
+
+    const textDiv = document.createElement('div');
+    textDiv.className = 'card-text';
+    textDiv.textContent = item.title;
+    div.appendChild(textDiv);
+
+    const actionsDiv = document.createElement('div');
+    actionsDiv.className = 'item-actions';
+
+    const btnEdit = document.createElement('button');
+    btnEdit.className = 'action-btn btn-edit';
+    btnEdit.textContent = t("btnLabelEdit");
+    btnEdit.onclick = (e) => {
+        e.stopPropagation();
+        openEditModal(item);
+    };
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'action-btn btn-delete';
+    btnDelete.textContent = t("btnLabelDelete");
+    btnDelete.onclick = (e) => {
+        e.stopPropagation();
+        openDeleteModal(item);
+    };
+
+    actionsDiv.appendChild(btnEdit);
+    actionsDiv.appendChild(btnDelete);
+    div.appendChild(actionsDiv);
+
+    div.onclick = () => handleItemClick(item);
+
     return div;
 }
 
