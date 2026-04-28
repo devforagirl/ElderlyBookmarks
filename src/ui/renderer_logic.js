@@ -2,11 +2,10 @@ import { t, setLanguage } from '../core/i18n.js';
 import { BookmarkService } from '../services/bookmark.js';
 import { safeAPI, showError } from '../utils/helpers.js';
 import { state, setState } from '../core/state.js';
-import { VirtualList } from './components/List.js';
 import { createRow, createCard, createHeaderRow } from './renderers.js';
 
-const BUFFER_SIZE = 5;
 const DEFAULT_FONT_SIZE = 22;
+const PAGE_SIZE = 50;
 
 export async function initialize() {
     // DOM Elements
@@ -26,6 +25,10 @@ export async function initialize() {
     const darkModeSwitch = document.getElementById('dark-mode-switch');
     const languageSelect = document.getElementById('language-select');
     const errorToast = document.getElementById('error-toast');
+    
+    const cardColsSelect = document.getElementById('card-cols-select');
+    const cardColsRow = document.getElementById('card-cols-row');
+    const btnLoadMore = document.getElementById('btn-load-more');
 
     const modalDelete = document.getElementById('modal-delete');
     const modalDeleteText = document.getElementById('modal-delete-text');
@@ -38,43 +41,10 @@ export async function initialize() {
     const editUrlGroup = document.getElementById('edit-url-group');
     const btnEditCancel = document.getElementById('btn-edit-cancel');
     const btnEditSave = document.getElementById('btn-edit-save');
+    const btnEditDelete = document.getElementById('btn-edit-delete');
 
-    let currentRowHeight = 80;
     let targetItemForAction = null;
-
-    // Virtual List Setup
-    const virtualList = new VirtualList(listContainer, {
-        rowHeight: currentRowHeight,
-        onHeaderFound: (headerTitle) => {
-            const labelEl = document.getElementById('time-view-label');
-            const sepEl = document.getElementById('time-view-separator');
-            if (labelEl && sepEl) {
-                if (headerTitle) {
-                    labelEl.textContent = headerTitle;
-                    sepEl.style.display = 'inline';
-                } else {
-                    labelEl.textContent = '';
-                    sepEl.style.display = 'none';
-                }
-            }
-        },
-        renderItem: (item, index, height) => {
-            if (item.type === 'header') {
-                return createHeaderRow(item, index, height);
-            }
-            
-            const handlers = {
-                onClick: (item) => handleItemClick(item),
-                onEdit: (item) => openEditModal(item),
-                onDelete: (item) => openDeleteModal(item)
-            };
-
-            if (state.isCardView) {
-                return createCard(item, index, height, getColumns(), listContainer.clientWidth, handlers);
-            }
-            return createRow(item, index, height, handlers);
-        }
-    });
+    let loadedOffset = 0;
 
     // --- INTERNAL HELPERS ---
     function debounce(func, wait) {
@@ -90,6 +60,7 @@ export async function initialize() {
         const savedViewMode = localStorage.getItem('setting_viewMode');
         const savedDarkMode = localStorage.getItem('setting_darkMode');
         const savedLanguage = localStorage.getItem('setting_language');
+        const savedCardCols = localStorage.getItem('setting_cardCols');
 
         if (savedFontSize) {
             const size = parseInt(savedFontSize, 10);
@@ -110,6 +81,14 @@ export async function initialize() {
             setState('isCardView', false);
             document.querySelector('input[value="folder"]').checked = true;
         }
+        
+        if (savedCardCols) {
+            cardColsSelect.value = savedCardCols;
+            setState('cardCols', parseInt(savedCardCols, 10));
+        } else {
+            setState('cardCols', 3);
+        }
+        updateCardLayout();
 
         if (savedDarkMode === 'true') {
             toggleDarkMode(true);
@@ -141,11 +120,151 @@ export async function initialize() {
     }
 
     function updateSizeSettings(size) {
-        currentRowHeight = Math.floor(size * 3.6);
         document.documentElement.style.setProperty('--font-base', `${size}px`);
-        document.documentElement.style.setProperty('--row-height', `${currentRowHeight}px`);
         fontSizeDisplay.textContent = `${size}px`;
-        renderVisibleItems();
+        // Use a a clean render for size changes
+        renderItemsBatch(state.allItems, true);
+    }
+
+    function updateCardLayout() {
+        const cols = state.cardCols || 3;
+        document.documentElement.style.setProperty('--card-cols', cols);
+        
+        if (state.isCardView) {
+            cardColsRow.classList.remove('hidden');
+            listContainer.classList.add('card-view-active');
+        } else {
+            cardColsRow.classList.add('hidden');
+            listContainer.classList.remove('card-view-active');
+        }
+    }
+
+    async function hardReset() {
+        updateCardLayout();
+        loadedOffset = 0;
+        setState('allItems', []);
+        listContainer.innerHTML = '';
+        listContainer.appendChild(listPhantom);
+        
+        // Re-create Load More button
+        const loadMoreBtn = document.createElement('button');
+        loadMoreBtn.id = 'btn-load-more';
+        loadMoreBtn.className = 'text-btn';
+        loadMoreBtn.style.cssText = 'display: block; margin: 20px auto; width: 200px; text-align: center; font-size: 24px;';
+        loadMoreBtn.textContent = t("btnLoadMore");
+        loadMoreBtn.onclick = () => loadPage(true);
+        listContainer.appendChild(loadMoreBtn);
+
+        await loadPage(false);
+    }
+
+    async function loadPage(append = false) {
+        if (!append) {
+            // The hardReset already handles the DOM clearing and offset reset.
+            // But if loadPage(false) is called directly, we do it here.
+            loadedOffset = 0;
+            setState('allItems', []);
+            listContainer.innerHTML = '';
+            listContainer.appendChild(listPhantom);
+            
+            const loadMoreBtn = document.createElement('button');
+            loadMoreBtn.id = 'btn-load-more';
+            loadMoreBtn.className = 'text-btn';
+            loadMoreBtn.style.cssText = 'display: block; margin: 20px auto; width: 200px; text-align: center; font-size: 24px;';
+            loadMoreBtn.textContent = t("btnLoadMore");
+            loadMoreBtn.onclick = () => loadPage(true);
+            listContainer.appendChild(loadMoreBtn);
+        }
+
+        try {
+            let items = [];
+            if (state.isSearching) {
+                items = await BookmarkService.search(searchInput.value.toLowerCase(), loadedOffset, PAGE_SIZE);
+            } else if (state.isTimeView) {
+                // Timeline mode: Load everything but we only render slices
+                const fullTree = await BookmarkService.getTree();
+                const flat = BookmarkService.flattenTree(fullTree);
+                flat.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
+                items = BookmarkService.groupBookmarksByTime(flat, t);
+                
+                // Set allItems to the full list for Timeline
+                setState('allItems', items);
+                
+                // Timeline logic: a loadPage(true) just increases offset
+                if (append) {
+                    loadedOffset += PAGE_SIZE;
+                } else {
+                    loadedOffset = 0;
+                }
+                
+                // Render only the current slice
+                renderItemsBatch(items.slice(loadedOffset, loadedOffset + PAGE_SIZE), append);
+                
+                const currentBtn = document.getElementById('btn-load-more');
+                if (currentBtn) {
+                    currentBtn.style.display = (loadedOffset + PAGE_SIZE < items.length) ? 'block' : 'none';
+                }
+                return;
+            } else {
+                items = await BookmarkService.getChildren(state.currentFolderId, loadedOffset, PAGE_SIZE);
+            }
+
+            if (items.length === 0) {
+                if (!append) {
+                    const empty = document.createElement('div');
+                    empty.className = 'empty-state';
+                    empty.textContent = t("msgEmpty");
+                    listContainer.appendChild(empty);
+                }
+                const currentBtn = document.getElementById('btn-load-more');
+                if (currentBtn) currentBtn.style.display = 'none';
+                return;
+            }
+
+            setState('allItems', [...state.allItems, ...items]);
+            loadedOffset += items.length;
+            
+            const currentBtn = document.getElementById('btn-load-more');
+            if (currentBtn) {
+                currentBtn.style.display = items.length < PAGE_SIZE ? 'none' : 'block';
+            }
+
+            renderItemsBatch(items, append);
+        } catch (err) {
+            showError(t("msgErrLoadFolder") + err);
+        }
+    }
+
+    function renderItemsBatch(items, clear = false) {
+        if (clear) {
+            const itemsToClear = listContainer.querySelectorAll('.list-item, .section-header, .bookmark-card, .empty-state');
+            itemsToClear.forEach(el => el.remove());
+        }
+
+        const handlers = {
+            onClick: (item) => handleItemClick(item),
+            onEdit: (item) => openEditModal(item),
+            onDelete: (item) => openDeleteModal(item)
+        };
+
+        items.forEach(item => {
+            let el;
+            if (item.type === 'header') {
+                el = createHeaderRow(item, 0, 0);
+            } else if (state.isCardView) {
+                el = createCard(item, 0, 0, 0, 0, handlers);
+            } else {
+                el = createRow(item, 0, 0, handlers);
+            }
+            if (el) {
+                const btn = document.getElementById('btn-load-more');
+                if (btn) {
+                    listContainer.insertBefore(el, btn);
+                } else {
+                    listContainer.appendChild(el);
+                }
+            }
+        });
     }
 
     async function toggleSearch(show) {
@@ -200,39 +319,21 @@ export async function initialize() {
         }
 
         updateBreadcrumbs();
-
-        try {
-            const children = await BookmarkService.getChildren(folderId);
-            setState('allItems', children);
-            listContainer.scrollTop = 0;
-            renderVisibleItems();
-
-        } catch (err) {
-            showError(t("msgErrLoadFolder") + err);
-        }
+        await hardReset();
     }
 
     async function enterTimeView() {
-        try {
-            const fullTree = await BookmarkService.getTree();
-            const flatBookmarks = BookmarkService.flattenTree(fullTree);
-            flatBookmarks.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
-            
-            setState('allItems', BookmarkService.groupBookmarksByTime(flatBookmarks, t));
+        setState('isTimeView', true);
+        setState('isCardView', false);
+        saveSetting('viewMode', 'time');
+        
+        breadcrumbsContainer.innerHTML = `
+            <span class="crumb" style="cursor:default">${t("crumbTimeView")}</span>
+            <span class="crumb-separator" id="time-view-separator" style="display:none">></span>
+            <span class="crumb" id="time-view-label" style="cursor:default; color: var(--folder-icon-color);"></span>
+        `;
 
-            listContainer.scrollTop = 0;
-            renderVisibleItems();
-
-            breadcrumbsContainer.innerHTML = `
-                <span class="crumb" style="cursor:default">${t("crumbTimeView")}</span>
-                <span class="crumb-separator" id="time-view-separator" style="display:none">></span>
-                <span class="crumb" id="time-view-label" style="cursor:default; color: var(--folder-icon-color);"></span>
-            `;
-
-            renderVisibleItems();
-        } catch (err) {
-            showError(t("msgErrLoadTime") + err);
-        }
+        await hardReset();
     }
 
     function updateBreadcrumbs() {
@@ -260,20 +361,6 @@ export async function initialize() {
                 separator.textContent = '>';
                 breadcrumbsContainer.appendChild(separator);
             }
-        });
-    }
-
-    function getColumns() {
-        if (!listContainer) return 1;
-        const minCardWidth = 250;
-        return Math.max(1, Math.floor(listContainer.clientWidth / minCardWidth));
-    }
-
-    function renderVisibleItems() {
-        virtualList.update(state.allItems, {
-            isCardView: state.isCardView,
-            cols: getColumns(),
-            emptyText: t("msgEmpty")
         });
     }
 
@@ -311,16 +398,7 @@ export async function initialize() {
             return;
         }
         setState('isSearching', true);
-        try {
-            const results = await BookmarkService.search(query);
-            setState('allItems', results);
-            listContainer.scrollTop = 0;
-            renderVisibleItems();
-
-            breadcrumbsContainer.innerHTML = `<span class="crumb">${t("crumbSearch")}</span>`;
-        } catch (err) {
-            showError(t("msgErrSearch") + err);
-        }
+        await hardReset();
     }
 
     function setupModals() {
@@ -347,6 +425,10 @@ export async function initialize() {
         btnEditCancel.onclick = () => {
             modalEdit.classList.add('hidden');
             targetItemForAction = null;
+        };
+        btnEditDelete.onclick = () => {
+            modalEdit.classList.add('hidden');
+            openDeleteModal(targetItemForAction);
         };
         btnEditSave.onclick = async () => {
             if (targetItemForAction) {
@@ -377,26 +459,7 @@ export async function initialize() {
     }
 
     async function refreshCurrentView() {
-        const savedScrollTop = listContainer.scrollTop;
-        try {
-            if (state.isTimeView) {
-                const fullTree = await BookmarkService.getTree();
-                const flatBookmarks = BookmarkService.flattenTree(fullTree);
-                flatBookmarks.sort((a, b) => (b.dateAdded || 0) - (a.dateAdded || 0));
-                setState('allItems', BookmarkService.groupBookmarksByTime(flatBookmarks, t));
-            } else if (state.isSearching) {
-                const query = searchInput.value.toLowerCase();
-                const results = await BookmarkService.search(query);
-                setState('allItems', results);
-            } else {
-                const children = await BookmarkService.getChildren(state.currentFolderId);
-                setState('allItems', children);
-            }
-            renderVisibleItems();
-            listContainer.scrollTop = savedScrollTop;
-        } catch (err) {
-            showError(t("msgErrRefresh") + err);
-        }
+        await hardReset();
     }
 
     function applyTranslations() {
@@ -422,10 +485,8 @@ export async function initialize() {
         await navigateTo('0', t("crumbHome"));
     }
 
-    listContainer.addEventListener('scroll', onScroll);
     window.addEventListener('resize', () => {
-        renderVisibleItems();
-        onScroll();
+        renderItemsBatch(state.allItems);
     });
 
     searchInput.addEventListener('input', debounce(handleSearch, 300));
@@ -451,6 +512,13 @@ export async function initialize() {
         saveSetting('fontSize', size);
     });
 
+    cardColsSelect.addEventListener('change', (e) => {
+        const cols = parseInt(e.target.value, 10);
+        setState('cardCols', cols);
+        saveSetting('cardCols', cols);
+        hardReset();
+    });
+
     viewModeRadios.forEach(radio => {
         radio.addEventListener('change', (e) => {
             if (e.target.checked) {
@@ -458,17 +526,19 @@ export async function initialize() {
                     setState('isTimeView', true);
                     setState('isCardView', false);
                     saveSetting('viewMode', 'time');
+                    updateCardLayout(); // Explicitly sync layout
                     enterTimeView();
                 } else if (e.target.value === 'card') {
                     setState('isCardView', true);
                     setState('isTimeView', false);
                     saveSetting('viewMode', 'card');
-                    renderVisibleItems();
-                    onScroll();
+                    updateCardLayout();
+                    hardReset();
                 } else {
                     setState('isTimeView', false);
                     setState('isCardView', false);
                     saveSetting('viewMode', 'folder');
+                    updateCardLayout(); // Explicitly sync layout
                     setState('isSearching', false);
                     navigateTo(state.currentFolderId, state.navigationStack[state.navigationStack.length-1]?.title || t("crumbHome"));
                 }
@@ -485,7 +555,7 @@ export async function initialize() {
         setLanguage(e.target.value);
         saveSetting('language', e.target.value);
         applyTranslations();
-        refreshCurrentView();
+        hardReset();
     });
 
     btnScrollTop.addEventListener('click', () => {
@@ -505,9 +575,4 @@ export async function initialize() {
     });
 
     setupModals();
-
-    // Dummy onScroll to match original structure
-    function onScroll() {
-        requestAnimationFrame(renderVisibleItems);
-    }
 }

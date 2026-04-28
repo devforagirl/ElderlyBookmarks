@@ -5,10 +5,11 @@ import { safeAPI } from '../utils/helpers.js';
  */
 export const BookmarkService = {
     /**
-     * Gets children of a specific folder
+     * Gets children of a specific folder with pagination
      */
-    async getChildren(folderId) {
-        return safeAPI(chrome.bookmarks.getChildren, folderId);
+    async getChildren(folderId, offset = 0, limit = 50) {
+        const allChildren = await safeAPI(chrome.bookmarks.getChildren, folderId);
+        return allChildren.slice(offset, offset + limit);
     },
 
     /**
@@ -19,10 +20,11 @@ export const BookmarkService = {
     },
 
     /**
-     * Searches bookmarks based on a query
+     * Searches bookmarks based on a query with pagination
      */
-    async search(query) {
-        return safeAPI(chrome.bookmarks.search, query);
+    async search(query, offset = 0, limit = 50) {
+        const allResults = await safeAPI(chrome.bookmarks.search, query);
+        return allResults.slice(offset, offset + limit);
     },
 
     /**

@@ -65,6 +65,17 @@
                     </label>
                 </div>
             </div>
+            <div id="card-cols-row" class="settings-row hidden" style="margin-top: 16px; justify-content: space-between;">
+                <label for="card-cols-select" data-i18n="lblCardCols">Cards per row:</label>
+                <select id="card-cols-select" style="font-size: 20px; padding: 4px;">
+                    <option value="1">1</option>
+                    <option value="2">2</option>
+                    <option value="3" selected>3</option>
+                    <option value="4">4</option>
+                    <option value="5">5</option>
+                    <option value="6">6</option>
+                </select>
+            </div>
             <div class="settings-row" style="margin-top: 16px; justify-content: space-between;">
                 <label for="dark-mode-switch" data-i18n="lblDarkMode">Dark Mode:</label>
                 <input type="checkbox" id="dark-mode-switch">
@@ -88,7 +99,8 @@
 
     <main id="list-container">
         <div id="list-phantom"></div>
-        <!-- List items will be injected here absolutely positioned -->
+        <!-- List items will be injected here -->
+        <button id="btn-load-more" class="text-btn" style="display: block; margin: 20px auto; width: 200px; text-align: center; font-size: 24px;" data-i18n="btnLoadMore">Load More</button>
     </main>
 
     <!-- Scroll Controls -->
@@ -123,6 +135,7 @@
             </div>
             <div class="modal-actions">
                 <button class="modal-btn" id="btn-edit-cancel" data-i18n="btnCancel">Cancel</button>
+                <button class="modal-btn danger" id="btn-edit-delete" data-i18n="modalDeleteTitle">Delete</button>
                 <button class="modal-btn primary" id="btn-edit-save" data-i18n="btnSave">Save</button>
             </div>
         </div>

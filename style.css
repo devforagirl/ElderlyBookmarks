@@ -229,18 +229,24 @@ input[type=radio], input[type=checkbox] {
   height: calc(100vh - 120px); 
   flex: 1;
   overflow-y: auto;
-  position: relative;
   width: 100%;
   padding: 0;
   scroll-behavior: smooth; 
+  display: flex;
+  flex-direction: column;
 }
 
 #list-phantom {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  z-index: -1;
+  display: none;
+}
+
+/* Card View Mode Active */
+#list-container.card-view-active {
+  display: grid;
+  grid-template-columns: repeat(var(--card-cols, 3), 1fr);
+  gap: 16px;
+  padding: 16px;
+  align-content: start;
 }
 
 /* Empty State */
@@ -250,14 +256,11 @@ input[type=radio], input[type=checkbox] {
     font-size: 28px;
     color: #888;
     font-weight: bold;
+    grid-column: 1 / -1;
 }
 
 /* List Item */
 .list-item {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: var(--row-height);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -266,6 +269,7 @@ input[type=radio], input[type=checkbox] {
   border-bottom: 1px solid #ccc;
   cursor: pointer;
   transition: background-color 0.1s;
+  height: var(--row-height);
 }
 
 .list-item:hover {
@@ -273,7 +277,6 @@ input[type=radio], input[type=checkbox] {
   border-left: 8px solid var(--folder-icon-color);
 }
 
-/* Show actions on hover */
 .list-item:hover .item-actions {
     display: flex;
 }
@@ -336,15 +339,12 @@ body.dark-mode .btn-edit {
     color: #82b1ff;
 }
 body.dark-mode .btn-edit:hover {
-    background-color: rgba(130, 177, 255, 0.2);
+    background-color: rgba(130, 177, 255, 0.1);
+    border-radius: 4px;
 }
 
 /* Section Header (Date) Style */
 .section-header {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  height: var(--row-height);
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -355,6 +355,7 @@ body.dark-mode .btn-edit:hover {
   font-size: var(--font-base);
   color: #333;
   pointer-events: none; 
+  height: var(--row-height);
 }
 
 /* Dark mode overrides for section header */
@@ -503,76 +504,94 @@ svg {
 body.dark-mode .modal-btn.danger {
     background-color: #5a0000;
     color: #ff8a80;
+    border-color: #ff8a80;
 }
 
 /* Card Mode Styles */
 .bookmark-card {
-    position: absolute;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 24px;
+    align-items: center;
+    padding: 20px;
     background-color: var(--card-bg);
-    border: 4px solid var(--text-color);
-    border-radius: 16px;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    border-radius: 20px;
     cursor: pointer;
-    transition: background-color 0.1s, transform 0.1s, box-shadow 0.1s;
+    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     font-weight: bold;
-    text-align: left;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    aspect-ratio: 16 / 9;
+    position: relative;
 }
 
 .bookmark-card:hover {
     background-color: var(--hover-bg);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transform: translateY(-2px);
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-6px);
 }
 
 .bookmark-card:active {
-    transform: scale(0.98);
+    transform: scale(0.96);
     background-color: var(--focus-color);
 }
 
-/* Folder specific background */
 .bookmark-card.is-folder {
-    background-color: #fffde7; /* Pale yellow for folders */
-    border-style: double; /* Subtle distinction */
+    border-left: 8px solid var(--folder-icon-color);
 }
 
-body.dark-mode .bookmark-card.is-folder {
-    background-color: #3d3d20;
+body.dark-mode .bookmark-card {
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Card Text */
+body.dark-mode .bookmark-card:hover {
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.5);
+}
+
 .card-text {
     font-size: var(--font-base);
-    font-weight: 600;
+    font-weight: 700;
+    color: var(--text-color);
     white-space: normal;
     overflow: hidden;
     text-overflow: ellipsis;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    word-break: break-all;
+    display: block;
+    flex: 1;
+    line-height: 1.4;
+    margin-bottom: 8px;
 }
 
-/* Card Actions (Hover Only) */
-.bookmark-card .item-actions {
-    display: none;
+.btn-modify {
     position: absolute;
-    bottom: 12px;
-    right: 12px;
-    gap: 8px;
+    top: 8px;
+    right: 8px;
+    padding: 4px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--text-color);
+    font-size: calc(var(--font-base) * 0.7);
+    font-weight: 600;
+    cursor: pointer;
+    opacity: 0;
+    transition: all 0.2s ease;
+    z-index: 10;
 }
 
-.bookmark-card:hover .item-actions {
-    display: flex;
+.bookmark-card:hover .btn-modify {
+    opacity: 1;
 }
 
-.bookmark-card .action-btn {
-    font-size: calc(var(--font-base) * 0.8);
-    padding: 4px 8px;
-    border-radius: 4px;
-    background: var(--bg-color);
-    border: 2px solid var(--text-color);
+.btn-modify:hover {
+    background-color: var(--focus-color);
+    border-color: var(--text-color);
+    transform: scale(1.1);
+}
+
+body.dark-mode .btn-modify {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.1);
 }
