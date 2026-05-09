@@ -143,17 +143,26 @@ export async function initialize() {
         updateCardLayout();
         loadedOffset = 0;
         setState('allItems', []);
-        listContainer.innerHTML = '';
-        listContainer.appendChild(listPhantom);
-        
-        // Re-create Load More button
-        const loadMoreBtn = document.createElement('button');
-        loadMoreBtn.id = 'btn-load-more';
-        loadMoreBtn.className = 'text-btn';
-        loadMoreBtn.style.cssText = 'display: block; margin: 20px auto; width: 200px; text-align: center; font-size: 24px;';
-        loadMoreBtn.textContent = t("btnLoadMore");
-        loadMoreBtn.onclick = () => loadPage(true);
-        listContainer.appendChild(loadMoreBtn);
+
+        // Targeted cleanup instead of innerHTML = '' to avoid flickering
+        const itemsToClear = listContainer.querySelectorAll('.list-item, .section-header, .bookmark-card, .empty-state');
+        itemsToClear.forEach(el => el.remove());
+
+        // Ensure core components are present
+        if (!document.getElementById('list-phantom')) {
+            listContainer.appendChild(listPhantom);
+        }
+
+        let loadMoreBtn = document.getElementById('btn-load-more');
+        if (!loadMoreBtn) {
+            loadMoreBtn = document.createElement('button');
+            loadMoreBtn.id = 'btn-load-more';
+            loadMoreBtn.className = 'text-btn';
+            loadMoreBtn.style.cssText = 'display: block; margin: 20px auto; width: 200px; text-align: center; font-size: 24px;';
+            loadMoreBtn.textContent = t("btnLoadMore");
+            loadMoreBtn.onclick = () => loadPage(true);
+            listContainer.appendChild(loadMoreBtn);
+        }
 
         await loadPage(false);
     }
@@ -247,6 +256,8 @@ export async function initialize() {
             onDelete: (item) => openDeleteModal(item)
         };
 
+        const fragment = document.createDocumentFragment();
+
         items.forEach(item => {
             let el;
             if (item.type === 'header') {
@@ -257,14 +268,16 @@ export async function initialize() {
                 el = createRow(item, 0, 0, handlers);
             }
             if (el) {
-                const btn = document.getElementById('btn-load-more');
-                if (btn) {
-                    listContainer.insertBefore(el, btn);
-                } else {
-                    listContainer.appendChild(el);
-                }
+                fragment.appendChild(el);
             }
         });
+
+        const btn = document.getElementById('btn-load-more');
+        if (btn) {
+            listContainer.insertBefore(fragment, btn);
+        } else {
+            listContainer.appendChild(fragment);
+        }
     }
 
     async function toggleSearch(show) {
@@ -311,15 +324,31 @@ export async function initialize() {
 
         setState('currentFolderId', folderId);
 
+        // Resolve title if not provided (e.g. from hashchange)
+        let finalTitle = title;
+        if (finalTitle === null) {
+            try {
+                const folder = await safeAPI(chrome.bookmarks.get, folderId);
+                finalTitle = folder.title || t("crumbHome");
+            } catch (err) {
+                finalTitle = t("crumbHome");
+            }
+        }
+
         const index = state.navigationStack.findIndex(item => item.id === folderId);
         if (index !== -1) {
             setState('navigationStack', state.navigationStack.slice(0, index + 1));
         } else {
-            setState('navigationStack', [...state.navigationStack, { id: folderId, title: title || t("crumbHome") }]);
+            setState('navigationStack', [...state.navigationStack, { id: folderId, title: finalTitle }]);
         }
 
         updateBreadcrumbs();
         await hardReset();
+
+        // Sync to URL hash to support back button
+        if (window.location.hash !== '#' + folderId) {
+            window.location.hash = folderId;
+        }
     }
 
     async function enterTimeView() {
@@ -479,14 +508,26 @@ export async function initialize() {
     loadSettings();
     applyTranslations();
 
-    if (state.isTimeView) {
+    // Route handling: check for initial hash
+    const initialHash = window.location.hash.substring(1);
+    if (initialHash && !state.isTimeView) {
+        await navigateTo(initialHash, null);
+    } else if (state.isTimeView) {
         await enterTimeView();
     } else {
         await navigateTo('0', t("crumbHome"));
     }
 
+    window.addEventListener('hashchange', async () => {
+        const folderId = window.location.hash.substring(1);
+        if (folderId && !state.isTimeView) {
+            await navigateTo(folderId, null);
+        }
+    });
+
+    // Remove redundant resize re-render as layout is handled by CSS Grid and --card-cols
     window.addEventListener('resize', () => {
-        renderItemsBatch(state.allItems);
+        updateCardLayout();
     });
 
     searchInput.addEventListener('input', debounce(handleSearch, 300));

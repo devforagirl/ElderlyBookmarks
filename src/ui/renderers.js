@@ -16,27 +16,44 @@ export function createCard(item, index, rowHeight, cols, containerWidth, handler
     const div = document.createElement('div');
     div.className = 'bookmark-card';
     if (!item.url) div.classList.add('is-folder');
-    
+
     // Content fallback: Title -> URL -> Untitled
     const displayText = item.title || item.url || t("msgUntitled");
-    
+
+    const cardMain = document.createElement('div');
+    cardMain.className = 'card-main';
+
     const textDiv = document.createElement('div');
     textDiv.className = 'card-text';
     textDiv.textContent = displayText;
-    div.appendChild(textDiv);
-    
-    // Top-right Modify button
+    cardMain.appendChild(textDiv);
+
+    const cardActions = document.createElement('div');
+    cardActions.className = 'card-actions';
+
     const btnModify = document.createElement('button');
-    btnModify.className = 'btn-modify';
+    btnModify.className = 'btn-card-action btn-modify';
     btnModify.textContent = t("btnLabelEdit");
     btnModify.onclick = (e) => {
         e.stopPropagation();
         handlers.onEdit(item);
     };
-    div.appendChild(btnModify);
-    
+    cardActions.appendChild(btnModify);
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'btn-card-action btn-delete';
+    btnDelete.textContent = t("btnLabelDelete"); // Using standard label for consistency
+    btnDelete.onclick = (e) => {
+        e.stopPropagation();
+        handlers.onDelete(item);
+    };
+    cardActions.appendChild(btnDelete);
+
+    div.appendChild(cardMain);
+    div.appendChild(cardActions);
+
     div.onclick = () => handlers.onClick(item);
-    
+
     return div;
 }
 
