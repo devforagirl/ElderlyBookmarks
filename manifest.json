@@ -1,14 +1,10 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "1.0",
+  "version": "1.1",
   "default_locale": "en",
   "description": "__MSG_extDesc__",
-  "permissions": [
-    "bookmarks",
-    "favicon",
-    "tabs"
-  ],
+  "permissions": ["bookmarks", "favicon", "tabs"],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
