@@ -9,14 +9,25 @@ Elderly Friendly Bookmarks is a Chrome extension specifically designed for senio
 ## ✨ Key Features
 
 - **👴 Seniors-First Design**: Large 22px+ fonts, giant clickable areas, and high-contrast colors.
-- **🚀 Two View Modes**:
+- **🚀 Three View Modes**:
   - Folder Mode: Traditional hierarchical browsing.
+  - Card View: Modern visual grid with large cards and intuitive action buttons.
   - Timeline Mode: View all bookmarks sorted by date added (Today, This Week, etc.).
+- **📍 Position Memory**: Automatically remembers and restores your last visited folder upon startup.
+- **↩️ Natural Navigation**: Full support for the browser's "Back" button via URL Hash synchronization.
 - **⚡ Virtual List Engine**: Smoothly handles thousands of bookmarks without lag using a custom virtual scrolling implementation.
 - **🔍 Quick Search**: A prominent, distraction-free search bar.
 - **🌗 Dark Mode**: Protect eyes during night-time browsing with one-click theme switching.
 - **✏️ Simple Management**: Hover to edit or delete bookmarks with large-font confirmation dialogs.
 - **🌍 Multilingual**: Supports 8 languages: English, Simplified/Traditional Chinese, Japanese, Korean, Russian, French, and Hindi.
+
+---
+
+## 📚 Documentation
+
+For a detailed overview and our privacy commitments, please visit our project pages:
+- [Project Overview](docs/index.html)
+- [Privacy Policy](docs/privacy.html)
 
 ---
 
