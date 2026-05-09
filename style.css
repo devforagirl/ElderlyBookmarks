@@ -637,4 +637,35 @@ body.dark-mode .btn-card-action.btn-delete {
 
 #btn-load-more {
   grid-column: 1 / -1;
+  display: block;
+  margin: 32px auto;
+  width: fit-content;
+  min-width: 240px;
+  padding: 16px 32px;
+  font-size: calc(var(--font-base) * 1.1);
+  font-weight: bold;
+  text-align: center;
+  background-color: var(--card-bg);
+  color: var(--text-color);
+  border: 3px solid var(--text-color);
+  border-radius: 50px; /* Pill shape */
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+#btn-load-more:hover {
+  background-color: var(--focus-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.15);
+}
+
+#btn-load-more:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+body.dark-mode #btn-load-more {
+  background-color: var(--card-bg);
+  border-color: var(--text-color);
 }

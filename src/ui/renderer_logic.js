@@ -55,6 +55,27 @@ export async function initialize() {
         };
     }
 
+    async function getFolderPath(folderId) {
+        const path = [];
+        let currentId = folderId;
+
+        while (currentId !== '0') {
+            try {
+                const folder = await safeAPI(chrome.bookmarks.get, currentId);
+                path.unshift({ id: currentId, title: folder.title || t("crumbHome") });
+
+                if (folder.parentId === undefined || folder.parentId === currentId) break;
+                currentId = folder.parentId;
+            } catch (err) {
+                break;
+            }
+        }
+
+        // Always start with Root
+        path.unshift({ id: '0', title: t("crumbHome") });
+        return path;
+    }
+
     function loadSettings() {
         const savedFontSize = localStorage.getItem('setting_fontSize');
         const savedViewMode = localStorage.getItem('setting_viewMode');
@@ -323,6 +344,7 @@ export async function initialize() {
         }
 
         setState('currentFolderId', folderId);
+        saveSetting('lastFolderId', folderId);
 
         // Resolve title if not provided (e.g. from hashchange)
         let finalTitle = title;
@@ -515,7 +537,28 @@ export async function initialize() {
     } else if (state.isTimeView) {
         await enterTimeView();
     } else {
-        await navigateTo('0', t("crumbHome"));
+        // Fallback to last visited folder or root
+        const lastFolderId = localStorage.getItem('setting_lastFolderId');
+
+        if (lastFolderId && lastFolderId !== '0') {
+            try {
+                // Verify folder still exists
+                await safeAPI(chrome.bookmarks.get, lastFolderId);
+
+                // Rebuild full navigation path to restore breadcrumbs
+                const fullPath = await getFolderPath(lastFolderId);
+                setState('navigationStack', fullPath);
+
+                // Now navigate to the leaf folder to load items
+                const leaf = fullPath[fullPath.length - 1];
+                await navigateTo(leaf.id, leaf.title);
+            } catch (err) {
+                // Folder deleted, fallback to root
+                await navigateTo('0', t("crumbHome"));
+            }
+        } else {
+            await navigateTo('0', t("crumbHome"));
+        }
     }
 
     window.addEventListener('hashchange', async () => {
